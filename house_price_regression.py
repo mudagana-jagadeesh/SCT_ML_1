@@ -1,138 +1,99 @@
-"""
-Linear Regression: Predicting House Prices
-Features: square footage (area), number of bedrooms, number of bathrooms
-Dataset: Housing.csv
-"""
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
--
+# Load dataset
 df = pd.read_csv("Housing.csv")
 
-features = ["area", "bedrooms", "bathrooms"]
-target = "price"
+# Select features and target
+X = df[["area", "bedrooms", "bathrooms"]]
+y = df["price"]
 
-X = df[features]
-y = df[target]
+# Display first few rows
+print("Dataset Preview:")
+print(df.head())
 
-print("Dataset shape:", df.shape)
-print("\nFeature summary:")
-print(X.describe())
-
-
+# Split dataset into training and testing data
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
-
-
+# Create Linear Regression model
 model = LinearRegression()
+
+# Train model
 model.fit(X_train, y_train)
 
-y_pred_train = model.predict(X_train)
-y_pred_test = model.predict(X_test)
+# Make predictions
+y_train_pred = model.predict(X_train)
+y_test_pred = model.predict(X_test)
 
+# Evaluate model
+print("\n----- Training Performance -----")
+print("R2 Score :", round(r2_score(y_train, y_train_pred), 4))
+print("MAE      :", round(mean_absolute_error(y_train, y_train_pred), 2))
+print("RMSE     :", round(np.sqrt(mean_squared_error(y_train, y_train_pred)), 2))
 
-def report(y_true, y_pred, label):
-    r2 = r2_score(y_true, y_pred)
-    mae = mean_absolute_error(y_true, y_pred)
-    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    print(f"\n{label} performance:")
-    print(f"  R^2   : {r2:.4f}")
-    print(f"  MAE   : {mae:,.0f}")
-    print(f"  RMSE  : {rmse:,.0f}")
-    return r2, mae, rmse
+print("\n----- Testing Performance -----")
+print("R2 Score :", round(r2_score(y_test, y_test_pred), 4))
+print("MAE      :", round(mean_absolute_error(y_test, y_test_pred), 2))
+print("RMSE     :", round(np.sqrt(mean_squared_error(y_test, y_test_pred)), 2))
 
-print("\n" + "=" * 50)
-print("MODEL PERFORMANCE")
-print("=" * 50)
-report(y_train, y_pred_train, "Train")
-report(y_test, y_pred_test, "Test")
+# Display intercept and slopes
+print("\n----- Model Parameters -----")
+print("Intercept:", round(model.intercept_, 2))
 
+print("\nSlopes (Coefficients):")
+for feature, coef in zip(X.columns, model.coef_):
+    print(f"{feature}: {round(coef, 2)}")
 
-print("\n" + "=" * 50)
-print("MODEL COEFFICIENTS")
-print("=" * 50)
-print(f"Intercept: {model.intercept_:,.2f}")
-for feat, coef in zip(features, model.coef_):
-    print(f"  {feat:10s}: {coef:,.2f}  (price change per +1 unit, holding others fixed)")
+# Regression Equation
+print("\nRegression Equation:")
+print(
+    f"Price = {model.intercept_:.2f} "
+    f"+ ({model.coef_[0]:.2f} * Area) "
+    f"+ ({model.coef_[1]:.2f} * Bedrooms) "
+    f"+ ({model.coef_[2]:.2f} * Bathrooms)"
+)
 
-model_scaled = LinearRegression()
-model_scaled.fit(X_train_scaled, y_train)
-print("\nStandardized coefficients (relative importance, larger |value| = stronger effect):")
-for feat, coef in sorted(
-    zip(features, model_scaled.coef_), key=lambda t: -abs(t[1])
-):
-    print(f"  {feat:10s}: {coef:,.2f}")
+# Predict a sample house price
+# Predict a sample house price
+sample_house = pd.DataFrame({
+    "area": [5000],
+    "bedrooms": [3],
+    "bathrooms": [2]
+})
 
+predicted_price = model.predict(sample_house)
 
-example = pd.DataFrame({"area": [3000], "bedrooms": [3], "bathrooms": [2]})
-example_pred = model.predict(example)[0]
-print("\n" + "=" * 50)
-print("EXAMPLE PREDICTION")
-print("=" * 50)
-print(f"House with {example.iloc[0]['area']} sqft, "
-      f"{example.iloc[0]['bedrooms']} bedrooms, "
-      f"{example.iloc[0]['bathrooms']} bathrooms")
-print(f"Predicted price: {example_pred:,.0f}")
+print("\nSample Prediction")
+print("House Details: Area=5000, Bedrooms=3, Bathrooms=2")
+print("Predicted Price:", round(predicted_price[0], 2))
 
-
-plt.figure(figsize=(7, 6))
-plt.scatter(y_test, y_pred_test, alpha=0.6, edgecolor="k")
-lims = [min(y_test.min(), y_pred_test.min()), max(y_test.max(), y_pred_test.max())]
-plt.plot(lims, lims, "r--", label="Perfect prediction")
+# Actual vs Predicted Plot
+plt.figure(figsize=(8, 5))
+plt.scatter(y_test, y_test_pred)
+plt.plot(
+    [y_test.min(), y_test.max()],
+    [y_test.min(), y_test.max()],
+    'r--'
+)
 plt.xlabel("Actual Price")
 plt.ylabel("Predicted Price")
-plt.title("Actual vs Predicted House Prices (Test Set)")
-plt.legend()
-plt.tight_layout()
-plt.savefig("actual_vs_predicted.png", dpi=150)
-print("Saved plot: actual_vs_predicted.png")
+plt.title("Actual vs Predicted House Prices")
+plt.show()
 
+# Residual Plot
+residuals = y_test - y_test_pred
 
-fig, axes = plt.subplots(1, 3, figsize=(16, 5))
-
-axes[0].scatter(df["area"], df["price"], alpha=0.5, edgecolor="k", color="#4C72B0")
-z = np.polyfit(df["area"], df["price"], 1)
-x_line = np.linspace(df["area"].min(), df["area"].max(), 100)
-axes[0].plot(x_line, np.poly1d(z)(x_line), "r--", linewidth=2)
-axes[0].set_xlabel("Area (sqft)")
-axes[0].set_ylabel("Price")
-axes[0].set_title("Price vs Area")
-
-df.boxplot(column="price", by="bedrooms", ax=axes[1])
-axes[1].set_xlabel("Bedrooms")
-axes[1].set_ylabel("Price")
-axes[1].set_title("Price vs Bedrooms")
-fig.suptitle("")  # remove default boxplot supertitle
-
-df.boxplot(column="price", by="bathrooms", ax=axes[2])
-axes[2].set_xlabel("Bathrooms")
-axes[2].set_ylabel("Price")
-axes[2].set_title("Price vs Bathrooms")
-
-plt.tight_layout()
-plt.savefig("feature_relationships.png", dpi=150)
-print("Saved plot: feature_relationships.png")
-
-
-residuals = y_test - y_pred_test
-plt.figure(figsize=(7, 6))
-plt.scatter(y_pred_test, residuals, alpha=0.6, edgecolor="k", color="#55A868")
-plt.axhline(0, color="r", linestyle="--", linewidth=2)
+plt.figure(figsize=(8, 5))
+plt.scatter(y_test_pred, residuals)
+plt.axhline(y=0)
 plt.xlabel("Predicted Price")
-plt.ylabel("Residual (Actual - Predicted)")
-plt.title("Residual Plot (Test Set)")
-plt.tight_layout()
-plt.savefig("residual_plot.png", dpi=150)
-print("Saved plot: residual_plot.png")
+plt.ylabel("Residuals")
+plt.title("Residual Plot")
+plt.show()
